@@ -5,3 +5,11 @@ Let me now test the payload printout.
 
 trying to test with my secret key set.
 lets do it again with a changed secret.
+
+├── python-service/            # Person B
+│   ├── requirements.txt
+│   ├── app/
+│   │   ├── main.py            # FastAPI app, /review endpoint
+│   │   ├── analysis.py        # diff chunking + LLM calls
+│   │   └── schemas.py         # request/response models (Pydantic)
+│   └── Dockerfile
