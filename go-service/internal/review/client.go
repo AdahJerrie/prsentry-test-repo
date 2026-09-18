@@ -18,14 +18,13 @@ type Client struct {
 }
 
 // NewClient builds a review.Client pointed at the Python service's base URL
-// (e.g. "http://localhost:8000"). The 10s timeout means a hung Python
-// service fails loudly and fast instead of blocking a webhook goroutine
-// forever.
+// (e.g. "http://localhost:8000"). // go-service: internal/review/client.go
+
 func NewClient(baseURL string) *Client {
 	return &Client{
 		baseURL: baseURL,
 		httpClient: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: 60 * time.Second, // Elevated to handle multi-file AI evaluation latency
 		},
 	}
 }
