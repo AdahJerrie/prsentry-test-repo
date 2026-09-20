@@ -12,7 +12,8 @@ _fastapi = import_module("fastapi")
 FastAPI = _fastapi.FastAPI
 HTTPException = _fastapi.HTTPException
 
-from app.analysis import analyze_pr
+# Import the updated asynchronous execution engine from your analysis layer
+from app.analysis import analyze_pr_async
 from app.models import ReviewRequest, ReviewResponse
 
 app = FastAPI(title="PRSentry Python Service")
@@ -28,21 +29,21 @@ def health():
 @app.post("/review", response_model=ReviewResponse)
 async def review(request: ReviewRequest):
     """
-    Receives PR file diffs from the Go service, runs LLM-based risk
-    analysis, and returns a risk score + summary.
+    Receives PR file diffs from the Go service, runs concurrent LLM-based 
+    finding and vulnerability analysis, and returns the aggregated 
+    v1 contract compliant payload.
     """
     try:
-        result = await analyze_pr_async(request.files)
+        # Pass the expanded contract parameters (pr_id, repo, files) to the async engine
+        response_payload = await analyze_pr_async(
+            pr_id=request.pr_id,
+            repo=request.repo,
+            files=request.files
+        )
+        return response_payload
+        
     except Exception as exc:
         # Anything from the Anthropic API (rate limit, network, auth)
         # surfaces here. Bubble up as a 502 so Go knows THIS service
         # failed, not that the request itself was malformed.
         raise HTTPException(status_code=502, detail=f"Analysis failed: {exc}")
-
-    return ReviewResponse(
-        pr_id=request.pr_id,
-        risk_score=result["risk_score"],
-        summary=result["summary"],
-        flagged_files=result["flagged_files"],
-        file_risks=result["file_risks"],
-    )
