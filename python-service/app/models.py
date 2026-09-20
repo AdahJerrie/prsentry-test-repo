@@ -8,7 +8,7 @@ from FastAPI, or Go will unmarshal into zero-values) — so this file
 IS the contract for the Python side.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field  # pyright: ignore[reportMissingImports]
 
 
 class FileDiff(BaseModel):
@@ -18,32 +18,31 @@ class FileDiff(BaseModel):
 
 
 class ReviewRequest(BaseModel):
-    """What Go POSTs to /review."""
+    """What Go POSTs to /review. Updated to include the mandatory repo target field."""
     pr_id: int
+    repo: str
     files: list[FileDiff]
 
 
-class FileRisk(BaseModel):
-    """One file's individual risk verdict, as computed by _analyze_one_file.
-    Part of the response contract now — not just an internal dict."""
-    path: str
-    risk_score: float = Field(ge=0, le=10)
-    reasoning: str
+class Finding(BaseModel):
+    """
+    One specific code architecture finding or defect discovered by the AI reviewer.
+    Satisfies the granular line-by-line contract structure.
+    """
+    file_path: str
+    line_number: int = Field(description="Line in the file the finding applies to.")
+    severity: str = Field(description="Must match exact set: low, medium, or high.")
+    category: str = Field(description="Must match exact set: bug, security, performance, style, or maintainability.")
+    message: str = Field(description="Human-readable explanation of the finding.")
 
 
 class ReviewResponse(BaseModel):
     """
-    What we send back to Go.
-
-    Only pr_id and risk_score are locked in the contract right now.
-    summary/flagged_files/file_risks are extras this skeleton adds so
-    there's somewhere to put per-file findings — treat them as
-    provisional until the contract doc says otherwise. file_risks is
-    additive (new field, doesn't touch pr_id/risk_score) — see
-    docs/api-contract.md for the note on why this is backward-compatible.
+    What the Python service sends back to Go.
+    Fully updated and locked down to match the v1 api-contract.md parameters.
     """
     pr_id: int
-    risk_score: float = Field(ge=0, le=10)
     summary: str
-    flagged_files: list[str] = []
-    file_risks: list[FileRisk] = []
+    risk_score: float = Field(description="Numeric rollup risk scale value.")
+    merge_recommendation: str = Field(description="Must match exact set: safe, caution, or block.")
+    findings: list[Finding] = []
