@@ -67,7 +67,7 @@ async def _analyze_single_diff(file: FileDiff) -> list[dict]:
             raw_findings = tool_block.input.get("findings", [])
         else:
             raw_findings = []
-            
+
         # Inject the file_path into each individual item as mandated by the contract
         for item in raw_findings:
             item["file_path"] = file.path
