@@ -61,40 +61,45 @@ func NewHandler(secret string, ghClient *github.Client, reviewClient *review.Cli
 			return
 		}
 
-		// phase 2: the handoff
-
+		// Only process target code lifecycle triggers
 		if payload.Action != "opened" && payload.Action != "synchronize" && payload.Action != "reopened" {
 			log.Printf("Ignoring action: %s\n", payload.Action)
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 
-		// 1. Acknowledge and release GitHub immediately
+		// 1. Acknowledge and release GitHub immediately to prevent 10s timeout retry loops
 		w.WriteHeader(http.StatusAccepted)
 
-		// 2. Dispatch heavy blocking I/O tasks to a background thread
+		// 2. Dispatch heavy blocking I/O tasks to an isolated background thread context
 		go func(p GitHubWebhookPayload) {
-			parts := strings.SplitN(p.Repository.FullName, "/", 2)
+			// Extract the raw full repository path string ("owner/name")
+			repoFullName := p.Repository.FullName
+			parts := strings.SplitN(repoFullName, "/", 2)
 			if len(parts) != 2 {
-				log.Println("Unexpected repo format:", p.Repository.FullName)
+				log.Println("Unexpected repo format:", repoFullName)
 				return
 			}
 			owner, repo := parts[0], parts[1]
 
+			// Fetch the code unified patch files from GitHub endpoints
 			files, err := ghClient.FetchPRFiles(p.Installation.ID, owner, repo, p.PullRequest.Number)
 			if err != nil {
 				log.Println("Failed to fetch PR files:", err)
 				return
 			}
 
-			riskResult, err := reviewClient.SubmitForReview(p.PullRequest.Number, files)
+			log.Printf("Fetched %d changed file(s) for PR #%d inside %s\n", len(files), p.PullRequest.Number, repoFullName)
+
+			// Submit parameters matching the updated v1 contract payload signature (pr_id, repo, files)
+			reviewResult, err := reviewClient.SubmitForReview(p.PullRequest.Number, repoFullName, files)
 			if err != nil {
 				log.Println("Failed to submit for review:", err)
 				return
 			}
 
-			log.Printf("Risk assessment for PR #%d completely finished processing! Score=%.1f\n",
-				riskResult.PRID, riskResult.RiskScore)
+			log.Printf("Analysis for PR #%d complete: Recommendation=%s, Risk Score=%.1f, Findings Count=%d\n",
+				reviewResult.PRID, reviewResult.MergeRecommendation, reviewResult.RiskScore, len(reviewResult.Findings))
 		}(payload)
 	}
 }
