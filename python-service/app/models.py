@@ -8,7 +8,7 @@ from FastAPI, or Go will unmarshal into zero-values) — so this file
 IS the contract for the Python side.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field  # pyright: ignore[reportMissingImports]
 
 
 class FileDiff(BaseModel):
