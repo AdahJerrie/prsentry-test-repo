@@ -29,13 +29,14 @@ func NewClient(baseURL string) *Client {
 	}
 }
 
-// SubmitForReview sends a PR's changed files to Python's POST /review and
+// SubmitForReview sends a PR's changed files alongside the target repo details to Python's POST /review and
 // returns the parsed risk assessment. Every failure point is wrapped with
 // context about which step failed, so a caller's log line says WHERE
 // things broke, not just that something did.
-func (c *Client) SubmitForReview(prID int, files []FileDiff) (*ReviewResponse, error) {
+func (c *Client) SubmitForReview(prID int, repo string, files []FileDiff) (*ReviewResponse, error) {
 	reqBody := ReviewRequest{
 		PRID:  prID,
+		Repo:  repo,
 		Files: files,
 	}
 
