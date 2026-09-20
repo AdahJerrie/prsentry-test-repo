@@ -6,7 +6,11 @@ Run locally with:
     uvicorn app.main:app --reload --port 8000
 """
 
-from fastapi import FastAPI, HTTPException
+from importlib import import_module
+
+_fastapi = import_module("fastapi")
+FastAPI = _fastapi.FastAPI
+HTTPException = _fastapi.HTTPException
 
 from app.analysis import analyze_pr
 from app.models import ReviewRequest, ReviewResponse
@@ -22,13 +26,13 @@ def health():
 
 
 @app.post("/review", response_model=ReviewResponse)
-def review(request: ReviewRequest):
+async def review(request: ReviewRequest):
     """
     Receives PR file diffs from the Go service, runs LLM-based risk
     analysis, and returns a risk score + summary.
     """
     try:
-        result = analyze_pr(request.files)
+        result = await analyze_pr_async(request.files)
     except Exception as exc:
         # Anything from the Anthropic API (rate limit, network, auth)
         # surfaces here. Bubble up as a 502 so Go knows THIS service
