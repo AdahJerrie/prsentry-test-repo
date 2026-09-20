@@ -58,11 +58,16 @@ async def _analyze_single_diff(file: FileDiff) -> list[dict]:
                 "content": f"File Path: {file.path}\n\nDiff Content:\n{file.diff}"
             }]
         )
+
+        #Ensure we access the correct content block array index
+        tool_block = response.content[0]
         
         # Safely parse structural input fields directly from the tool call block
-        tool_input = response.content[0].input
-        raw_findings = tool_input.get("findings", [])
-        
+        if hasattr(tool_block, "input"):
+            raw_findings = tool_block.input.get("findings", [])
+        else:
+            raw_findings = []
+            
         # Inject the file_path into each individual item as mandated by the contract
         for item in raw_findings:
             item["file_path"] = file.path
